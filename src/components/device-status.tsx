@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { isStandalone } from "@/lib/device";
-import { useClientValue } from "@/lib/use-client-value";
+import { PUSH_CHANGED_EVENT } from "@/lib/push-client";
 
 // A small "is everything working?" panel for testing on real devices.
 // We'll keep it around (maybe behind an admin flag) because it's handy
@@ -15,8 +15,18 @@ type StaticInfo = {
 };
 
 // useSyncExternalStore needs the SAME object back each time it asks, or React
-// thinks the value changed and re-renders forever. So we read once and cache.
+// thinks the value changed and re-renders forever. So we cache, and only
+// re-read when the alerts card announces a change.
 let cached: StaticInfo | null = null;
+
+function subscribe(onChange: () => void) {
+  const handler = () => {
+    cached = null;
+    onChange();
+  };
+  window.addEventListener(PUSH_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(PUSH_CHANGED_EVENT, handler);
+}
 
 function readStatic(): StaticInfo {
   return (cached ??= {
@@ -27,7 +37,7 @@ function readStatic(): StaticInfo {
 }
 
 export function DeviceStatus() {
-  const info = useClientValue(readStatic);
+  const info = useSyncExternalStore(subscribe, readStatic, () => null);
   const [swState, setSwState] = useState("checking…");
 
   useEffect(() => {

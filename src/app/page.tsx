@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { AlertsCard } from "@/components/alerts-card";
 import { DeviceStatus } from "@/components/device-status";
 import { InstallGuide } from "@/components/install-guide";
 // Importing the image (instead of linking to /public) gives it a unique,
@@ -15,6 +16,7 @@ export default function Home() {
         New LEGO sets, straight to your phone.
       </p>
       <InstallGuide />
+      <AlertsCard />
       <DeviceStatus />
     </main>
   );

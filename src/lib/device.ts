@@ -26,3 +26,16 @@ export function isInAppBrowser(): boolean {
     navigator.userAgent,
   );
 }
+
+/** A friendly name for this device, shown in device lists later. */
+export function deviceLabel(): string {
+  const ua = navigator.userAgent;
+  if (/iPhone/.test(ua)) return "iPhone";
+  if (/iPad/.test(ua) || (ua.includes("Macintosh") && navigator.maxTouchPoints > 1)) {
+    return "iPad";
+  }
+  if (/Android/.test(ua)) return "Android";
+  if (/Macintosh/.test(ua)) return "Mac";
+  if (/Windows/.test(ua)) return "Windows PC";
+  return "Device";
+}

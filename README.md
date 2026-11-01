@@ -23,7 +23,7 @@ admin approval to sign up, push is the only alert channel, quiet hours
 
 - [x] **M0** Project setup, health check, deploy to Vercel
 - [x] **M1** PWA: manifest, icons, service worker, "Add to Home Screen" guide
-- [ ] **M2** Push end-to-end: "Turn on alerts" → test notification on a real iPhone
+- [x] **M2** Push end-to-end: "Turn on alerts" → test notification on a real iPhone
 - [ ] **M3** Username/password login, invite codes, admin approval, multi-device
 - [ ] **M4** Brickset sync; browse + follow themes
 - [ ] **M5** Hourly job: new + now-available sets → push (with quiet hours)
@@ -67,7 +67,19 @@ Check wiring at http://localhost:3000/api/health — you want `"ok": true`.
 Every push to the main branch redeploys automatically; other branches get
 preview URLs.
 
-### 3. Brickset (needed in M4)
+### 3. Database tables
+In Supabase → **SQL Editor** → **New query**, paste and **Run** each file in
+`supabase/migrations/`, in order. (Each is safe to re-run.)
+
+### 4. Web Push keys
+```bash
+npx web-push generate-vapid-keys
+```
+Add to Vercel (and `.env.local`): `NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY` (secret), `VAPID_SUBJECT` (`mailto:you@example.com`), and
+`ADMIN_SECRET` (a temporary test password until logins exist), then redeploy.
+
+### 5. Brickset (needed in M4)
 Request a free API key at https://brickset.com/tools/webservices/requestkey.
 It can take a little while to arrive, so request it early.
 
@@ -88,5 +100,7 @@ src/app/manifest.ts        Web app manifest (name, icon, standalone display)
 src/app/apple-icon.png     iOS Home Screen icon (180x180)
 src/app/api/health/        GET /api/health wiring check
 src/components/            Install guide, device check panel, SW registration
-src/lib/                   Env helpers, Supabase admin client, device detection
+src/lib/                   Env, Supabase admin client, device detection, push sender
+src/app/api/push/          Save/remove a device subscription; send a test push
+supabase/migrations/       SQL to run in Supabase, in order
 ```
