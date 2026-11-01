@@ -1,4 +1,4 @@
-import { hasAdminSecret, unauthorized } from "@/lib/admin-secret";
+import { getApprovedUser } from "@/lib/auth";
 import { sendPush, type StoredSubscription } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -7,7 +7,10 @@ const MAX_DELAY_SECONDS = 15;
 // POST /api/push/test: send a test notification to the device that asked.
 // Optional delay gives you time to lock the phone first.
 export async function POST(request: Request) {
-  if (!hasAdminSecret(request)) return unauthorized();
+  const user = await getApprovedUser();
+  if (!user) {
+    return Response.json({ error: "Please log in (and be approved) first." }, { status: 401 });
+  }
 
   const body = (await request.json().catch(() => ({}))) as {
     endpoint?: unknown;
@@ -21,6 +24,7 @@ export async function POST(request: Request) {
     .from("push_subscriptions")
     .select("id, endpoint, p256dh, auth, failure_count")
     .eq("endpoint", body.endpoint)
+    .eq("user_id", user.id) // you can only test your own devices
     .maybeSingle<StoredSubscription>();
 
   if (!sub) {
@@ -33,7 +37,7 @@ export async function POST(request: Request) {
 
   const outcome = await sendPush(sub, {
     title: "🧱 Brick Drop test",
-    body: `It works! Sent at ${new Date().toLocaleTimeString("en-US", {
+    body: `Hi ${user.username}! It works. Sent at ${new Date().toLocaleTimeString("en-US", {
       timeZone: "America/New_York",
       hour: "numeric",
       minute: "2-digit",

@@ -1,14 +1,17 @@
 import Image from "next/image";
-import { AlertsCard } from "@/components/alerts-card";
-import { DeviceStatus } from "@/components/device-status";
+import { Suspense } from "react";
 import { InstallGuide } from "@/components/install-guide";
+import { InstalledOnly } from "@/components/installed-only";
 // Importing the image (instead of linking to /public) gives it a unique,
 // content-based URL, so phones always show the latest version.
 import logo from "@/assets/logo-wordmark.png";
+import { Account } from "./account";
 
 export default function Home() {
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-10 text-center">
+      {/* Everything above the Suspense boundary is the same for everyone,
+          so it loads instantly. */}
       <h1>
         <Image src={logo} alt="Brick Drop" priority className="h-auto w-64" />
       </h1>
@@ -16,8 +19,11 @@ export default function Home() {
         New LEGO sets, straight to your phone.
       </p>
       <InstallGuide />
-      <AlertsCard />
-      <DeviceStatus />
+      <InstalledOnly>
+        <Suspense fallback={<p className="text-zinc-400">Loading…</p>}>
+          <Account />
+        </Suspense>
+      </InstalledOnly>
     </main>
   );
 }

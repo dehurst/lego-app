@@ -17,24 +17,6 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuf
   return bytes;
 }
 
-// TEMPORARY (M2): the shared test password, remembered on this device.
-const SECRET_KEY = "brickdrop:test-password";
-export function getTestPassword(): string {
-  try {
-    return localStorage.getItem(SECRET_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-export function setTestPassword(value: string) {
-  try {
-    if (value) localStorage.setItem(SECRET_KEY, value);
-    else localStorage.removeItem(SECRET_KEY);
-  } catch {
-    /* private mode etc. — just won't be remembered */
-  }
-}
-
 export async function api(
   path: string,
   method: "POST" | "DELETE",
@@ -42,7 +24,7 @@ export async function api(
 ): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
   const res = await fetch(path, {
     method,
-    headers: { "content-type": "application/json", "x-admin-secret": getTestPassword() },
+    headers: { "content-type": "application/json" }, // session cookie is sent automatically
     body: JSON.stringify(body),
   });
   const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;

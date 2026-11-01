@@ -1,5 +1,6 @@
 "use client";
 
+import { Card } from "@/components/card";
 import { isIOS, isInAppBrowser, isStandalone } from "@/lib/device";
 import { useClientValue } from "@/lib/use-client-value";
 
@@ -82,14 +83,5 @@ export function InstallGuide() {
         Screen to get alerts.
       </p>
     </Card>
-  );
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="w-full max-w-sm rounded-2xl bg-white p-5 text-left text-zinc-800 shadow-lg">
-      <h2 className="mb-2 text-lg font-bold text-zinc-900">{title}</h2>
-      <div className="text-base leading-relaxed">{children}</div>
-    </section>
   );
 }

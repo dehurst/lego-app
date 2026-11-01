@@ -1,4 +1,4 @@
-import { hasAdminSecret, unauthorized } from "@/lib/admin-secret";
+import { getApprovedUser, getCurrentUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 type SubscribeBody = {
@@ -15,9 +15,15 @@ function isHttpsUrl(value: unknown): value is string {
   }
 }
 
-// POST /api/push/subscribe: save (or refresh) this device's subscription.
+function notAllowed(): Response {
+  return Response.json({ error: "Please log in (and be approved) first." }, { status: 401 });
+}
+
+// POST /api/push/subscribe: save (or refresh) this device's subscription
+// for the logged-in person.
 export async function POST(request: Request) {
-  if (!hasAdminSecret(request)) return unauthorized();
+  const user = await getApprovedUser();
+  if (!user) return notAllowed();
 
   const body = (await request.json().catch(() => ({}))) as SubscribeBody;
   const endpoint = body.subscription?.endpoint;
@@ -38,6 +44,9 @@ export async function POST(request: Request) {
     .upsert(
       {
         endpoint,
+        // If someone else used to be logged in on this device, the device
+        // now belongs to whoever is logged in.
+        user_id: user.id,
         p256dh,
         auth,
         device_label: deviceLabel,
@@ -56,12 +65,19 @@ export async function POST(request: Request) {
 
 // DELETE /api/push/subscribe: forget this device (when alerts are turned off).
 export async function DELETE(request: Request) {
-  if (!hasAdminSecret(request)) return unauthorized();
+  // Pending users may delete too (e.g. when logging out).
+  const user = await getCurrentUser();
+  if (!user) return notAllowed();
 
   const { endpoint } = (await request.json().catch(() => ({}))) as { endpoint?: unknown };
   if (!isHttpsUrl(endpoint)) {
     return Response.json({ error: "Invalid endpoint." }, { status: 400 });
   }
-  await createAdminClient().from("push_subscriptions").delete().eq("endpoint", endpoint);
+  // Only ever delete your OWN device.
+  await createAdminClient()
+    .from("push_subscriptions")
+    .delete()
+    .eq("endpoint", endpoint)
+    .eq("user_id", user.id);
   return Response.json({ ok: true });
 }

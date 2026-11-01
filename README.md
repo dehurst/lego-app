@@ -24,7 +24,7 @@ admin approval to sign up, push is the only alert channel, quiet hours
 - [x] **M0** Project setup, health check, deploy to Vercel
 - [x] **M1** PWA: manifest, icons, service worker, "Add to Home Screen" guide
 - [x] **M2** Push end-to-end: "Turn on alerts" → test notification on a real iPhone
-- [ ] **M3** Username/password login, invite codes, admin approval, multi-device
+- [x] **M3** Username/password login, invite codes, admin approval, multi-device
 - [ ] **M4** Brickset sync; browse + follow themes
 - [ ] **M5** Hourly job: new + now-available sets → push (with quiet hours)
 - [ ] **M6** In-app alerts inbox + "alerts are off on this device" banner
@@ -77,7 +77,19 @@ npx web-push generate-vapid-keys
 ```
 Add to Vercel (and `.env.local`): `NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
 `VAPID_PRIVATE_KEY` (secret), `VAPID_SUBJECT` (`mailto:you@example.com`), and
-`ADMIN_SECRET` (a temporary test password until logins exist), then redeploy.
+`ADMIN_SECRET` (used once, as the invite code for the first admin account), then redeploy.
+
+### Logins (M3)
+1. Supabase → **Authentication → Sign In / Providers** → turn **off**
+   "Allow new users to sign up". Accounts are only created by our server
+   after checking an invite code, so nobody can go around the invites.
+2. Open the app, tap **I have an invite code**, and use your `ADMIN_SECRET`
+   as the code. That first account becomes the admin, already approved.
+3. Make invite codes for everyone else from the **Admin** page.
+
+Usernames + passwords only — no emails are collected. Behind the scenes each
+username maps to a never-used address like `name@users.brickdrop.invalid`
+because Supabase logins need an email-shaped name.
 
 ### 5. Brickset (needed in M4)
 Request a free API key at https://brickset.com/tools/webservices/requestkey.
@@ -102,5 +114,9 @@ src/app/api/health/        GET /api/health wiring check
 src/components/            Install guide, device check panel, SW registration
 src/lib/                   Env, Supabase admin client, device detection, push sender
 src/app/api/push/          Save/remove a device subscription; send a test push
+src/app/admin/             Approvals, invite codes, password resets
+src/app/login, signup/     Login (in the browser) and invite-code signup (server action)
+src/lib/auth.ts            Who is logged in? The one place that decides
+src/proxy.ts               Keeps login sessions fresh on every request
 supabase/migrations/       SQL to run in Supabase, in order
 ```

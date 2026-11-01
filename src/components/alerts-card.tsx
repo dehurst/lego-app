@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { deviceLabel, isIOS, isStandalone } from "@/lib/device";
-import {
-  announcePushChange,
-  api,
-  getTestPassword,
-  setTestPassword,
-  urlBase64ToUint8Array,
-} from "@/lib/push-client";
+import { announcePushChange, api, urlBase64ToUint8Array } from "@/lib/push-client";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
@@ -23,13 +17,11 @@ export function AlertsCard() {
   const [status, setStatus] = useState<Status>("loading");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [password, setPassword] = useState("");
 
   // On load: figure out where this device stands.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      setPassword(getTestPassword());
       // On iPhone/iPad, push only works from the Home Screen app. In a Safari
       // tab the install guide shows instead of this card.
       const iosTab = isIOS() && !isStandalone();
@@ -73,7 +65,6 @@ export function AlertsCard() {
 
     setBusy(true);
     try {
-      setTestPassword(password.trim());
       const reg = await navigator.serviceWorker.ready;
       const sub =
         (await reg.pushManager.getSubscription()) ??
@@ -173,19 +164,9 @@ export function AlertsCard() {
           <p className="mb-3">
             Get a notification when new LEGO sets drop in themes you follow.
           </p>
-          <label className="mb-3 block text-sm">
-            <span className="text-zinc-500">Test password (temporary, until logins exist)</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="off"
-              className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-base"
-            />
-          </label>
           <button
             onClick={turnOn}
-            disabled={busy || !VAPID_PUBLIC_KEY || !password.trim()}
+            disabled={busy || !VAPID_PUBLIC_KEY}
             className="w-full rounded-xl bg-brick px-4 py-3 text-lg font-bold text-navy disabled:opacity-40"
           >
             {busy ? "Turning on…" : "🔔 Turn on alerts"}
