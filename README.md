@@ -80,7 +80,8 @@ machine and the Vercel dashboard in production. Only variables prefixed
 ## Project layout
 
 ```
-design/icon.svg            Source art for the app icon (re-render PNGs after editing)
+design/logo-original.png   The Brick Drop logo (source for all icons)
+design/make-icons.py       Rebuilds every icon size: python3 design/make-icons.py
 public/sw.js               Service worker: shows push notifications, handles taps
 public/icon-*.png          Manifest icons (192, 512, maskable 512)
 src/app/manifest.ts        Web app manifest (name, icon, standalone display)

@@ -10,12 +10,12 @@ export default function Home() {
         alt=""
         width={96}
         height={96}
-        className="rounded-3xl shadow-lg"
+        className="rounded-3xl shadow-lg shadow-black/40"
       />
-      <h1 className="text-4xl font-extrabold tracking-tight text-zinc-900">
+      <h1 className="text-4xl font-extrabold tracking-tight text-brick">
         Brick Drop
       </h1>
-      <p className="max-w-sm text-lg text-zinc-800">
+      <p className="max-w-sm text-lg text-zinc-300">
         New LEGO sets, straight to your phone.
       </p>
       <InstallGuide />

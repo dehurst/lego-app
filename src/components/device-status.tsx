@@ -50,8 +50,8 @@ export function DeviceStatus() {
   ];
 
   return (
-    <section className="w-full max-w-sm rounded-2xl bg-zinc-900/90 p-4 text-left text-sm text-zinc-100">
-      <h2 className="mb-2 font-semibold text-yellow-300">Device check</h2>
+    <section className="w-full max-w-sm rounded-2xl bg-white/10 p-4 text-left text-sm text-zinc-100">
+      <h2 className="mb-2 font-semibold text-brick">Device check</h2>
       <ul className="space-y-1">
         {rows.map(([label, value, good]) => (
           <li key={label} className="flex justify-between gap-4">

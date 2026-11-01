@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
 @theme inline {
+  /* Brand colors, sampled from design/logo-original.png */
+  --color-navy: #182138;
+  --color-brick: #F0904F;
+  --color-brick-dark: #CB6D33;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-/* One bright look for now (no dark mode yet). Background is set on <body>
+/* One look for now (no separate dark mode). Background is set on <body>
    in layout.tsx so it also fills behind the iPhone notch. */
 body {
-  color: #18181b;
+  color: #f4f4f5;
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-tap-highlight-color: transparent;
 }

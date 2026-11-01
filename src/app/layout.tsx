@@ -19,12 +19,13 @@ export const metadata: Metadata = {
   // iOS reads these for the Home Screen app's name and status bar.
   appleWebApp: {
     title: "Brick Drop",
-    statusBarStyle: "default",
+    // White status-bar text drawn over our navy background.
+    statusBarStyle: "black-translucent",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FFCF00",
+  themeColor: "#182138",
   // Let the page draw under the notch; we pad with safe-area insets below.
   viewportFit: "cover",
 };
@@ -35,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-[#FFCF00] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+      <body className="flex min-h-full flex-col bg-navy pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
         {children}
         <ServiceWorkerRegistrar />
       </body>
