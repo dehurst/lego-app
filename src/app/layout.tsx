@@ -1,5 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,6 +16,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Brick Drop",
   description: "New LEGO set alerts for you and your friends.",
+  // iOS reads these for the Home Screen app's name and status bar.
+  appleWebApp: {
+    title: "Brick Drop",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FFCF00",
+  // Let the page draw under the notch; we pad with safe-area insets below.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -23,7 +35,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col bg-[#FFCF00] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+        {children}
+        <ServiceWorkerRegistrar />
+      </body>
     </html>
   );
 }

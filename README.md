@@ -22,7 +22,7 @@ admin approval to sign up, push is the only alert channel, quiet hours
 ## Milestones
 
 - [x] **M0** Project setup, health check, deploy to Vercel
-- [ ] **M1** PWA: manifest, icons, service worker, "Add to Home Screen" guide
+- [x] **M1** PWA: manifest, icons, service worker, "Add to Home Screen" guide
 - [ ] **M2** Push end-to-end: "Turn on alerts" → test notification on a real iPhone
 - [ ] **M3** Username/password login, invite codes, admin approval, multi-device
 - [ ] **M4** Brickset sync; browse + follow themes
@@ -76,3 +76,16 @@ It can take a little while to arrive, so request it early.
 All secrets live in environment variables — `.env.local` (git-ignored) on your
 machine and the Vercel dashboard in production. Only variables prefixed
 `NEXT_PUBLIC_` are ever sent to the browser.
+
+## Project layout
+
+```
+design/icon.svg            Source art for the app icon (re-render PNGs after editing)
+public/sw.js               Service worker: shows push notifications, handles taps
+public/icon-*.png          Manifest icons (192, 512, maskable 512)
+src/app/manifest.ts        Web app manifest (name, icon, standalone display)
+src/app/apple-icon.png     iOS Home Screen icon (180x180)
+src/app/api/health/        GET /api/health wiring check
+src/components/            Install guide, device check panel, SW registration
+src/lib/                   Env helpers, Supabase admin client, device detection
+```
