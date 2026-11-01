@@ -13,9 +13,18 @@ export function isSupabaseConfigured(): boolean {
   );
 }
 
+/**
+ * The project URL, reduced to just "https://<project>.supabase.co".
+ * Supabase's dashboard also shows URLs like ".../rest/v1/"; if one of those
+ * gets pasted in, every request fails with "Invalid path specified".
+ */
+export function supabaseUrl(): string {
+  return new URL(requireEnv("NEXT_PUBLIC_SUPABASE_URL")).origin;
+}
+
 export function createAdminClient(): SupabaseClient {
   return createClient(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    supabaseUrl(),
     requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
     { auth: { persistSession: false, autoRefreshToken: false } },
   );
