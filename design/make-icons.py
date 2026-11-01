@@ -41,3 +41,28 @@ save(regular, "public/icon-192.png", 192)
 save(regular, "src/app/apple-icon.png", 180)
 save(regular, "src/app/icon.png", 64)
 save(maskable, "public/icon-maskable-512.png", 512)
+
+# On-screen logo: just the lettering, on a transparent background. Imported from src/assets so Next.js fingerprints its URL and
+# browsers never show a stale copy.
+def knock_out_navy(img: Image.Image) -> Image.Image:
+    """Turn the navy background transparent, keeping soft letter edges."""
+    out = img.convert("RGBA")
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, _ = px[x, y]
+            dist = max(abs(r - NAVY[0]), abs(g - NAVY[1]), abs(b - NAVY[2]))
+            alpha = min(1.0, max(0.0, (dist - 12) / 60))
+            if alpha == 0:
+                px[x, y] = (0, 0, 0, 0)
+            else:
+                # "Un-blend" the navy out of edge pixels so they don't look dark.
+                px[x, y] = tuple(
+                    max(0, min(255, round(n + (c - n) / alpha)))
+                    for c, n in zip((r, g, b), NAVY[:3])
+                ) + (round(alpha * 255),)
+    return out
+
+
+knock_out_navy(logo).save("src/assets/logo-wordmark.png", optimize=True)
+print("wrote src/assets/logo-wordmark.png")
