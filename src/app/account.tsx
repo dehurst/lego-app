@@ -4,6 +4,7 @@ import { buttonPrimary, buttonSecondary, Card } from "@/components/card";
 import { DeviceStatus } from "@/components/device-status";
 import { SignOutButton } from "@/components/sign-out-button";
 import { getCurrentUser } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // The part of the home screen that depends on who's logged in. It reads the
 // session cookie, so it renders per request inside a <Suspense> boundary.
@@ -39,11 +40,30 @@ export async function Account() {
     );
   }
 
+  const { data: follows } = await createAdminClient()
+    .from("theme_follows")
+    .select("themes(display_name)")
+    .eq("user_id", user.id);
+  const followedNames = (follows ?? [])
+    .map((f) => (f.themes as unknown as { display_name: string } | null)?.display_name)
+    .filter(Boolean)
+    .sort();
+
   return (
     <>
       <p className="text-lg text-white">
         Hi, <b>{user.username}</b> 👋
       </p>
+      <Card title="Your themes">
+        <p className="mb-3">
+          {followedNames.length
+            ? `Following: ${followedNames.join(", ")}`
+            : "You're not following any themes yet. Pick some to get alerts about new sets."}
+        </p>
+        <Link href="/themes" className={`${buttonPrimary} block text-center`}>
+          {followedNames.length ? "Browse themes" : "Pick themes"}
+        </Link>
+      </Card>
       <AlertsCard />
       {user.role === "admin" && (
         <Link href="/admin" className="font-semibold text-brick underline">

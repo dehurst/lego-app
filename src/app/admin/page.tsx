@@ -4,7 +4,12 @@ import { buttonPrimary, Card } from "@/components/card";
 import { getAdminUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { approveUser, createInvite, deleteInvite, removeUser } from "./actions";
-import { ConfirmButton, ResetPasswordButton, ShareInviteButton } from "./admin-buttons";
+import {
+  ConfirmButton,
+  ResetPasswordButton,
+  ShareInviteButton,
+  SyncCatalogButton,
+} from "./admin-buttons";
 
 export default function AdminPage() {
   return (
@@ -46,7 +51,7 @@ async function AdminContent() {
   }
 
   const db = createAdminClient();
-  const [{ data: profiles }, { data: invites }, { data: devices }] = await Promise.all([
+  const [{ data: profiles }, { data: invites }, { data: devices }, { data: lastSync }] = await Promise.all([
     db.from("profiles").select("id, username, role, status, created_at").order("created_at"),
     db
       .from("invite_codes")
@@ -55,6 +60,12 @@ async function AdminContent() {
       .gt("expires_at", new Date().toISOString())
       .order("created_at", { ascending: false }),
     db.from("push_subscriptions").select("user_id"),
+    db
+      .from("sync_runs")
+      .select("started_at, ok, stats, error")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const deviceCount = new Map<string, number>();
@@ -121,6 +132,25 @@ async function AdminContent() {
         <form action={createInvite}>
           <button className={buttonPrimary}>+ New invite code</button>
         </form>
+      </Card>
+
+      <Card title="LEGO catalog">
+        <p className="mb-3 text-sm text-zinc-500">
+          {lastSync
+            ? `Last sync ${new Date(lastSync.started_at).toLocaleString("en-US", {
+                timeZone: "America/New_York",
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}: ${
+                lastSync.ok
+                  ? `${(lastSync.stats as { sets?: number } | null)?.sets ?? "?"} sets`
+                  : lastSync.ok === false
+                    ? `failed (${lastSync.error})`
+                    : "still running or interrupted"
+              }`
+            : "Never synced. Tap below to load themes and sets."}
+        </p>
+        <SyncCatalogButton />
       </Card>
 
       <Card title={`People (${members.length})`}>

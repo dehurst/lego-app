@@ -69,3 +69,29 @@ export async function resetPassword(_prev: ResetState, formData: FormData): Prom
   if (error) return { error: error.message };
   return { password };
 }
+
+export type SyncState =
+  | { ok: true; summary: string }
+  | { ok: false; error: string }
+  | undefined;
+
+/** Pull the latest themes + sets from Rebrickable right now. */
+export async function syncCatalogNow(): Promise<SyncState> {
+  await requireAdmin();
+  // Imported here so the admin page doesn't load sync code until it's used.
+  const { syncCatalog } = await import("@/lib/catalog/sync");
+  try {
+    const r = await syncCatalog();
+    refresh();
+    return {
+      ok: true,
+      summary:
+        `${r.sets} sets in ${r.seconds}s. ` +
+        (r.firstSync
+          ? "First sync: catalog loaded (no alerts for these)."
+          : `${r.newSetNums.length} new since last sync.`),
+    };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}

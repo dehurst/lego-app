@@ -13,7 +13,7 @@ Built by a dad and son. Installed from the iPhone/iPad home screen.
 | Database + login | Supabase (Postgres + Auth) | Real Postgres, Row Level Security, generous free tier |
 | Hourly check | Supabase `pg_cron` → our API route | Vercel's free cron is once/day; pg_cron can run hourly for free |
 | Alerts | Web Push with VAPID keys | Works on iOS 16.4+ when installed to the home screen |
-| LEGO data | Brickset API v3 | Has launch dates and a "released" flag, so we can tell *announced* from *on sale* |
+| LEGO data | Rebrickable API v3 (now) + Brickset (later) | Rebrickable: instant free key, themes/sets/images. Brickset adds launch dates so we can tell *announced* from *on sale* |
 
 Decisions: username + password login (no email collected), invite code **and**
 admin approval to sign up, push is the only alert channel, quiet hours
@@ -25,7 +25,7 @@ admin approval to sign up, push is the only alert channel, quiet hours
 - [x] **M1** PWA: manifest, icons, service worker, "Add to Home Screen" guide
 - [x] **M2** Push end-to-end: "Turn on alerts" → test notification on a real iPhone
 - [x] **M3** Username/password login, invite codes, admin approval, multi-device
-- [ ] **M4** Brickset sync; browse + follow themes
+- [x] **M4** Catalog sync (Rebrickable); browse + follow themes
 - [ ] **M5** Hourly job: new + now-available sets → push (with quiet hours)
 - [ ] **M6** In-app alerts inbox + "alerts are off on this device" banner
 - [ ] **M7** Watchlist (stored; stock checks are Phase 2)
@@ -91,7 +91,16 @@ Usernames + passwords only — no emails are collected. Behind the scenes each
 username maps to a never-used address like `name@users.brickdrop.invalid`
 because Supabase logins need an email-shaped name.
 
-### 5. Brickset (needed in M4)
+### 5. Rebrickable (M4)
+1. Free account at https://rebrickable.com → **Settings → API → Generate new key**.
+2. Add it to Vercel as `REBRICKABLE_API_KEY` (type Secret) and redeploy.
+3. Admin page → **Sync catalog now** loads themes and sets (about 10 seconds).
+
+The catalog keeps last year's sets onward. Merchandise (keychains, shoe
+charms), books and promo items are filtered out by theme. Rules for what's
+hidden and friendlier theme names live in `src/lib/catalog/themes.ts`.
+
+### 6. Brickset (optional, for "now available" alerts)
 Request a free API key at https://brickset.com/tools/webservices/requestkey.
 It can take a little while to arrive, so request it early.
 
@@ -118,5 +127,7 @@ src/app/admin/             Approvals, invite codes, password resets
 src/app/login, signup/     Login (in the browser) and invite-code signup (server action)
 src/lib/auth.ts            Who is logged in? The one place that decides
 src/proxy.ts               Keeps login sessions fresh on every request
+src/lib/catalog/           LEGO data: source (Rebrickable), theme rules, sync
+src/app/themes/            Browse themes, follow them, see a theme's sets
 supabase/migrations/       SQL to run in Supabase, in order
 ```

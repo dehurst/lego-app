@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { resetPassword } from "./actions";
+import { resetPassword, syncCatalogNow } from "./actions";
 
 /** A submit button that asks "are you sure?" first. */
 export function ConfirmButton({
@@ -83,5 +83,22 @@ export function ShareInviteButton({ code }: { code: string }) {
     <button type="button" onClick={share} className="text-sm font-semibold text-navy underline">
       {copied ? "Copied!" : "Share"}
     </button>
+  );
+}
+
+export function SyncCatalogButton() {
+  const [state, formAction, pending] = useActionState(syncCatalogNow, undefined);
+  return (
+    <form action={formAction} className="flex flex-col gap-2">
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-xl bg-navy px-4 py-3 font-bold text-white disabled:opacity-40"
+      >
+        {pending ? "Syncing… (about 10 seconds)" : "Sync catalog now"}
+      </button>
+      {state?.ok && <p className="text-sm text-green-700">✓ {state.summary}</p>}
+      {state && !state.ok && <p className="text-sm text-red-700">Sync failed: {state.error}</p>}
+    </form>
   );
 }
