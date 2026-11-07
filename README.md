@@ -30,10 +30,20 @@ admin approval to sign up, push is the only alert channel, quiet hours
 - [x] **M5b** Brickset: on sale / coming / retired, prices, "now in stores" alerts
 - [x] **M6** In-app alerts inbox + "alerts are off on this device" banner
 - [x] **M7** Watchlist (stored; stock checks are Phase 2)
-- [ ] **M8** Admin page, error handling, privacy page
+- [x] **M8** Admin page, error handling, privacy page
 
 Phase 2 (designed for, not built): back-in-stock alerts for watchlisted sets,
 pending a review of feasibility and LEGO.com's terms of service.
+
+## Before inviting friends
+
+1. `https://<your-app>/api/health` shows `"ok": true` and no warnings.
+2. `ADMIN_SECRET` is deleted from Vercel (it was only for the first admin).
+3. Read `/privacy` and tell the other parents what it says. Short version:
+   username only, no names/emails, no ads or tracking, delete anytime.
+4. Admin page → **+ New invite code** → **Share** for each friend.
+5. Approve each signup on the Admin page; watch for "alerts off" next to
+   anyone who never turned alerts on.
 
 ## Local setup
 
@@ -158,6 +168,7 @@ src/lib/alerts/            Hourly job: queue alerts, quiet hours, grouped messag
 src/app/alerts/            Alerts inbox
 src/app/watchlist/         Watched sets (and the watch action)
 src/components/set-card.tsx  One set as shown everywhere (badge, LEGO.com link)
+src/app/privacy/           Plain-language privacy page + delete-my-account
 src/app/api/cron/hourly/   The endpoint Supabase's scheduler calls
 supabase/migrations/       SQL to run in Supabase, in order
 ```

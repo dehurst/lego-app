@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Suspense } from "react";
 import { InstallGuide } from "@/components/install-guide";
 import { InstalledOnly } from "@/components/installed-only";
@@ -24,6 +25,9 @@ export default function Home() {
           <Account />
         </Suspense>
       </InstalledOnly>
+      <Link href="/privacy" className="text-xs text-zinc-500 underline">
+        Privacy: what we store
+      </Link>
     </main>
   );
 }

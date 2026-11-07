@@ -58,6 +58,12 @@ export function SignupForm() {
         <button type="submit" disabled={pending} className={buttonPrimary}>
           {pending ? "Creating account…" : "Create account"}
         </button>
+        <p className="text-center text-xs text-zinc-500">
+          We only store your username, not your name or email.{" "}
+          <Link href="/privacy" className="underline">
+            What we store
+          </Link>
+        </p>
         <p className="text-center text-sm text-zinc-500">
           Already have an account?{" "}
           <Link href="/login" className="font-semibold text-navy underline">
