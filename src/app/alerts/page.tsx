@@ -3,7 +3,9 @@ import { Suspense } from "react";
 import { Card } from "@/components/card";
 import { RebrickableCredit } from "@/components/rebrickable-credit";
 import { SET_CARD_COLUMNS, SetCard, type SetCardData } from "@/components/set-card";
+import { WatchButton } from "@/components/watch-button";
 import { getApprovedUser } from "@/lib/auth";
+import { watchedSetNums } from "@/lib/watchlist";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MarkSeen } from "./mark-seen";
 
@@ -53,15 +55,18 @@ async function AlertList() {
   const user = await getApprovedUser();
   if (!user) return <Card title="Log in first">Alerts are for approved members.</Card>;
 
-  const { data } = await createAdminClient()
-    .from("notifications")
-    .select(
-      `id, kind, status, created_at, sent_at,
-       sets(${SET_CARD_COLUMNS}, themes!sets_root_theme_id_fkey(display_name))`,
-    )
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const [{ data }, watched] = await Promise.all([
+    createAdminClient()
+      .from("notifications")
+      .select(
+        `id, kind, status, created_at, sent_at,
+         sets(${SET_CARD_COLUMNS}, themes!sets_root_theme_id_fkey(display_name))`,
+      )
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(100),
+    watchedSetNums(user.id),
+  ]);
   const alerts = ((data ?? []) as unknown as AlertRow[]).filter((a) => a.sets);
   const thisYear = new Date().getFullYear();
 
@@ -84,6 +89,9 @@ async function AlertList() {
             <SetCard
               set={a.sets!}
               thisYear={thisYear}
+              action={
+                <WatchButton setNum={a.sets!.set_num} watching={watched.has(a.sets!.set_num)} />
+              }
               header={
                 <>
                   {KIND_LABELS[a.kind] ?? a.kind}

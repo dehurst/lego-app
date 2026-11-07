@@ -3,7 +3,9 @@ import { Suspense } from "react";
 import { Card } from "@/components/card";
 import { RebrickableCredit } from "@/components/rebrickable-credit";
 import { SET_CARD_COLUMNS, SetCard, statusOf, type SetCardData } from "@/components/set-card";
+import { WatchButton } from "@/components/watch-button";
 import { getApprovedUser } from "@/lib/auth";
+import { watchedSetNums } from "@/lib/watchlist";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FollowButton } from "../follow-button";
 
@@ -80,7 +82,7 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
   if (!Number.isInteger(id)) return <Card title="Not found">That theme doesn&apos;t exist.</Card>;
 
   const db = createAdminClient();
-  const [{ data: theme }, { data: sets }, { data: follow }] = await Promise.all([
+  const [{ data: theme }, { data: sets }, { data: follow }, watched] = await Promise.all([
     db.from("themes").select("id, display_name").eq("id", id).eq("hidden", false).maybeSingle(),
     db
       .from("sets")
@@ -95,6 +97,7 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
       .eq("user_id", user.id)
       .eq("theme_id", id)
       .maybeSingle(),
+    watchedSetNums(user.id),
   ]);
 
   if (!theme) return <Card title="Not found">That theme doesn&apos;t exist.</Card>;
@@ -141,7 +144,11 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
           <ul className="flex flex-col gap-3">
             {groupSets.map((s) => (
               <li key={s.set_num}>
-                <SetCard set={s} thisYear={thisYear} />
+                <SetCard
+                  set={s}
+                  thisYear={thisYear}
+                  action={<WatchButton setNum={s.set_num} watching={watched.has(s.set_num)} />}
+                />
               </li>
             ))}
           </ul>

@@ -38,12 +38,32 @@ export async function queueAlerts(setNums: string[], kind: AlertKind): Promise<n
     followersByTheme.set(f.theme_id, [...(followersByTheme.get(f.theme_id) ?? []), f.user_id]);
   }
 
+  // People watching a specific set also hear when it goes on sale, even if
+  // they don't follow its theme. (A brand-new set can't be watched yet.)
+  const watchersBySet = new Map<string, string[]>();
+  if (kind !== "new_set") {
+    for (let i = 0; i < sets.length; i += CHUNK) {
+      const { data: watches, error: watchError } = await db
+        .from("watchlist_items")
+        .select("user_id, set_num, profiles!inner(status)")
+        .in("set_num", sets.slice(i, i + CHUNK).map((s) => s.set_num))
+        .eq("profiles.status", "approved");
+      if (watchError) throw new Error(`Reading watchlists: ${watchError.message}`);
+      for (const w of watches ?? []) {
+        watchersBySet.set(w.set_num, [...(watchersBySet.get(w.set_num) ?? []), w.user_id]);
+      }
+    }
+  }
+
+  // A Set removes duplicates: following the theme AND watching the set
+  // still means one alert.
   const rows = sets.flatMap((s) =>
-    (followersByTheme.get(s.root_theme_id) ?? []).map((userId) => ({
-      user_id: userId,
-      set_num: s.set_num,
-      kind,
-    })),
+    [
+      ...new Set([
+        ...(followersByTheme.get(s.root_theme_id) ?? []),
+        ...(watchersBySet.get(s.set_num) ?? []),
+      ]),
+    ].map((userId) => ({ user_id: userId, set_num: s.set_num, kind })),
   );
 
   for (let i = 0; i < rows.length; i += CHUNK) {

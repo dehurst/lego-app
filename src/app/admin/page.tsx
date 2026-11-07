@@ -202,7 +202,8 @@ async function AdminContent() {
       <Card title="Test an alert">
         <p className="mb-3 text-sm text-zinc-500">
           Makes the newest set in a theme look brand new, then runs the check, so
-          everyone following that theme gets a real alert.
+          everyone following that theme gets a real alert. (If anyone had that set on their
+          watchlist, it&apos;s removed from it.)
         </p>
         <SimulateNewSetForm themes={followedThemes} />
       </Card>

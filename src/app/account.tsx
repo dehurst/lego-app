@@ -42,12 +42,16 @@ export async function Account() {
     );
   }
 
-  const [{ data: follows }, unread] = await Promise.all([
+  const [{ data: follows }, unread, { count: watchCount }] = await Promise.all([
     createAdminClient()
       .from("theme_follows")
       .select("theme_id, themes(display_name)")
       .eq("user_id", user.id),
     unreadAlertCount(user.id),
+    createAdminClient()
+      .from("watchlist_items")
+      .select("set_num", { count: "exact", head: true })
+      .eq("user_id", user.id),
   ]);
   const followed = (follows ?? [])
     .map((f) => ({
@@ -76,6 +80,16 @@ export async function Account() {
         ) : (
           <span className="text-sm font-normal text-zinc-400">All caught up →</span>
         )}
+      </Link>
+
+      <Link
+        href="/watchlist"
+        className="flex w-full max-w-sm items-center justify-between rounded-2xl bg-white px-5 py-4 text-left font-bold text-zinc-900 shadow-lg"
+      >
+        <span>★ Watchlist</span>
+        <span className="text-sm font-normal text-zinc-400">
+          {watchCount ? `${watchCount} set${watchCount > 1 ? "s" : ""}` : "Empty"} →
+        </span>
       </Link>
 
       <Card title="Your themes">

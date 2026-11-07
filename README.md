@@ -29,7 +29,7 @@ admin approval to sign up, push is the only alert channel, quiet hours
 - [x] **M5** Hourly job: new sets → push (with quiet hours)
 - [x] **M5b** Brickset: on sale / coming / retired, prices, "now in stores" alerts
 - [x] **M6** In-app alerts inbox + "alerts are off on this device" banner
-- [ ] **M7** Watchlist (stored; stock checks are Phase 2)
+- [x] **M7** Watchlist (stored; stock checks are Phase 2)
 - [ ] **M8** Admin page, error handling, privacy page
 
 Phase 2 (designed for, not built): back-in-stock alerts for watchlisted sets,
@@ -154,7 +154,10 @@ src/lib/auth.ts            Who is logged in? The one place that decides
 src/proxy.ts               Keeps login sessions fresh on every request
 src/lib/catalog/           LEGO data: source (Rebrickable), theme rules, sync
 src/app/themes/            Browse themes, follow them, see a theme's sets
-src/lib/alerts/            Hourly job: queue alerts, quiet hours, grouped messages
+src/lib/alerts/            Hourly job: queue alerts, quiet hours, grouped messages, inbox counts
+src/app/alerts/            Alerts inbox
+src/app/watchlist/         Watched sets (and the watch action)
+src/components/set-card.tsx  One set as shown everywhere (badge, LEGO.com link)
 src/app/api/cron/hourly/   The endpoint Supabase's scheduler calls
 supabase/migrations/       SQL to run in Supabase, in order
 ```
