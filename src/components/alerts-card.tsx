@@ -142,7 +142,10 @@ export function AlertsCard() {
   if (status === "loading" || status === "hidden") return null;
 
   return (
-    <section className="w-full max-w-sm rounded-2xl bg-white p-5 text-left text-zinc-800 shadow-lg">
+    <section
+      id="alerts" // the "alerts are off" banner links here
+      className="w-full max-w-sm scroll-mt-6 rounded-2xl bg-white p-5 text-left text-zinc-800 shadow-lg"
+    >
       <h2 className="mb-2 text-lg font-bold text-zinc-900">Alerts</h2>
 
       {!VAPID_PUBLIC_KEY && (

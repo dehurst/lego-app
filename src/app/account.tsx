@@ -4,6 +4,8 @@ import { buttonPrimary, buttonSecondary, Card } from "@/components/card";
 import { DeviceStatus } from "@/components/device-status";
 import { SignOutButton } from "@/components/sign-out-button";
 import { getCurrentUser } from "@/lib/auth";
+import { AlertsOffBanner } from "@/components/alerts-off-banner";
+import { unreadAlertCount } from "@/lib/alerts/inbox";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // The part of the home screen that depends on who's logged in. It reads the
@@ -40,28 +42,63 @@ export async function Account() {
     );
   }
 
-  const { data: follows } = await createAdminClient()
-    .from("theme_follows")
-    .select("themes(display_name)")
-    .eq("user_id", user.id);
-  const followedNames = (follows ?? [])
-    .map((f) => (f.themes as unknown as { display_name: string } | null)?.display_name)
-    .filter(Boolean)
-    .sort();
+  const [{ data: follows }, unread] = await Promise.all([
+    createAdminClient()
+      .from("theme_follows")
+      .select("theme_id, themes(display_name)")
+      .eq("user_id", user.id),
+    unreadAlertCount(user.id),
+  ]);
+  const followed = (follows ?? [])
+    .map((f) => ({
+      id: f.theme_id as number,
+      name: (f.themes as unknown as { display_name: string } | null)?.display_name ?? "",
+    }))
+    .filter((t) => t.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <>
+      <AlertsOffBanner />
       <p className="text-lg text-white">
         Hi, <b>{user.username}</b> 👋
       </p>
+
+      <Link
+        href="/alerts"
+        className="flex w-full max-w-sm items-center justify-between rounded-2xl bg-white px-5 py-4 text-left font-bold text-zinc-900 shadow-lg"
+      >
+        <span>🔔 Alerts</span>
+        {unread > 0 ? (
+          <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-sm text-white">
+            {unread} new
+          </span>
+        ) : (
+          <span className="text-sm font-normal text-zinc-400">All caught up →</span>
+        )}
+      </Link>
+
       <Card title="Your themes">
-        <p className="mb-3">
-          {followedNames.length
-            ? `Following: ${followedNames.join(", ")}`
-            : "You're not following any themes yet. Pick some to get alerts about new sets."}
-        </p>
+        {followed.length ? (
+          <ul className="mb-3 flex flex-wrap gap-2">
+            {followed.map((t) => (
+              <li key={t.id}>
+                <Link
+                  href={`/themes/${t.id}`}
+                  className="block rounded-full bg-navy px-3 py-1 text-sm font-semibold text-white"
+                >
+                  {t.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mb-3">
+            You&apos;re not following any themes yet. Pick some to get alerts about new sets.
+          </p>
+        )}
         <Link href="/themes" className={`${buttonPrimary} block text-center`}>
-          {followedNames.length ? "Browse themes" : "Pick themes"}
+          {followed.length ? "Browse all themes" : "Pick themes"}
         </Link>
       </Card>
       <AlertsCard />

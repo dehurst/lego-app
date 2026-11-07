@@ -28,7 +28,7 @@ admin approval to sign up, push is the only alert channel, quiet hours
 - [x] **M4** Catalog sync (Rebrickable); browse + follow themes
 - [x] **M5** Hourly job: new sets → push (with quiet hours)
 - [x] **M5b** Brickset: on sale / coming / retired, prices, "now in stores" alerts
-- [ ] **M6** In-app alerts inbox + "alerts are off on this device" banner
+- [x] **M6** In-app alerts inbox + "alerts are off on this device" banner
 - [ ] **M7** Watchlist (stored; stock checks are Phase 2)
 - [ ] **M8** Admin page, error handling, privacy page
 

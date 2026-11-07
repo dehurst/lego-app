@@ -10,6 +10,7 @@ export type PushPayload = {
   url?: string; // where tapping the notification goes
   tag?: string; // same tag replaces an older notification
   icon?: string;
+  badge?: number; // the red number on the app icon (unread alerts)
 };
 
 export type StoredSubscription = {

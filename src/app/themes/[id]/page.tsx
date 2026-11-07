@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { Card } from "@/components/card";
 import { RebrickableCredit } from "@/components/rebrickable-credit";
-import { RemoteImage } from "@/components/remote-image";
+import { SET_CARD_COLUMNS, SetCard, statusOf, type SetCardData } from "@/components/set-card";
 import { getApprovedUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FollowButton } from "../follow-button";
@@ -26,18 +26,6 @@ export default function ThemePage({ params, searchParams }: Props) {
   );
 }
 
-type SetRow = {
-  set_num: string;
-  name: string;
-  year: number;
-  num_parts: number;
-  image_url: string | null;
-  source_url: string | null;
-  availability_status: "coming" | "available" | "retired" | null;
-  launch_date: string | null;
-  rrp_usd: number | string | null;
-};
-
 type Filter = "all" | "available" | "coming";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
@@ -45,51 +33,41 @@ const FILTERS: { key: Filter; label: string }[] = [
   { key: "coming", label: "Coming soon" },
 ];
 
-/**
- * Where a set stands. Brickset's dates win when we have them; otherwise
- * fall back to the release year (a future year means "coming").
- * (Retired sets are filtered out in the database query, so never reach here.)
- */
-function statusOf(s: SetRow, thisYear: number): Exclude<Filter, "all"> | null {
-  if (s.availability_status === "coming" || s.availability_status === "available") {
-    return s.availability_status;
-  }
-  return s.year > thisYear ? "coming" : null;
-}
+// Coming soon first, then on sale, then sets we can't classify yet.
+// (Retired sets are filtered out in the database query.)
+const STATUS_ORDER = { coming: 0, available: 1, other: 2 } as const;
+type Group = keyof typeof STATUS_ORDER;
+const GROUP_LABELS: Record<Group, string> = {
+  coming: "Coming soon",
+  available: "On sale",
+  other: "Other sets",
+};
 
-function formatLaunch(date: string): string {
-  // Dates are plain days ("2027-03-01"); format at noon UTC so no time zone
-  // can push them onto the day before.
-  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-function StatusBadge({ s, thisYear }: { s: SetRow; thisYear: number }) {
+function groupOf(s: SetCardData, thisYear: number): Group {
   const status = statusOf(s, thisYear);
-  const price = s.rrp_usd ? ` · $${Number(s.rrp_usd).toFixed(2)}` : "";
-  if (status === "available") {
-    return <Badge className="bg-green-600 text-white">On sale{price}</Badge>;
-  }
-  if (status === "coming") {
-    return (
-      <Badge className="bg-brick text-navy">
-        Coming {s.launch_date ? formatLaunch(s.launch_date) : s.year}
-        {price}
-      </Badge>
-    );
-  }
-  return null;
+  return status === "coming" || status === "available" ? status : "other";
 }
 
-function Badge({ className, children }: { className: string; children: React.ReactNode }) {
-  return (
-    <span className={`mt-1 w-fit rounded px-1.5 py-0.5 text-xs font-bold ${className}`}>
-      {children}
-    </span>
-  );
+/** Sort order within the page. Dates are "YYYY-MM-DD", so text order = date order. */
+function compareSets(a: SetCardData, b: SetCardData, thisYear: number): number {
+  const ga = groupOf(a, thisYear);
+  const gb = groupOf(b, thisYear);
+  if (ga !== gb) return STATUS_ORDER[ga] - STATUS_ORDER[gb];
+  const da = a.launch_date ?? `${a.year}-12-31`;
+  const db = b.launch_date ?? `${b.year}-12-31`;
+  // Coming soon: the soonest launch first. Everything else: newest first.
+  return ga === "coming" ? da.localeCompare(db) : db.localeCompare(da);
+}
+
+function groupByStatus(sets: SetCardData[], thisYear: number) {
+  const groups: { group: Group; sets: SetCardData[] }[] = [];
+  for (const s of sets) {
+    const group = groupOf(s, thisYear);
+    const last = groups.at(-1);
+    if (last?.group === group) last.sets.push(s);
+    else groups.push({ group, sets: [s] });
+  }
+  return groups;
 }
 
 async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "searchParams">) {
@@ -106,14 +84,10 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
     db.from("themes").select("id, display_name").eq("id", id).eq("hidden", false).maybeSingle(),
     db
       .from("sets")
-      .select(
-        "set_num, name, year, num_parts, image_url, source_url, availability_status, launch_date, rrp_usd",
-      )
+      .select(SET_CARD_COLUMNS)
       .eq("root_theme_id", id)
       // Hide retired sets: you can't buy them anymore.
       .or("availability_status.is.null,availability_status.neq.retired")
-      .order("year", { ascending: false })
-      .order("first_seen_at", { ascending: false })
       .limit(1000),
     db
       .from("theme_follows")
@@ -125,22 +99,20 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
 
   if (!theme) return <Card title="Not found">That theme doesn&apos;t exist.</Card>;
   const thisYear = new Date().getFullYear();
-  const all = (sets ?? []) as SetRow[];
+  const all = (sets ?? []) as SetCardData[];
   const count = (key: Filter) =>
-    key === "all" ? all.length : all.filter((s) => statusOf(s, thisYear) === key).length;
-  const shown = (filter === "all" ? all : all.filter((s) => statusOf(s, thisYear) === filter))
+    key === "all" ? all.length : all.filter((s) => groupOf(s, thisYear) === key).length;
+  const shown = (filter === "all" ? all : all.filter((s) => groupOf(s, thisYear) === filter))
     .slice()
     .sort((a, b) => compareSets(a, b, thisYear));
-  // In the "All" view, show a heading wherever the status changes.
-  const groups = groupByStatus(shown, thisYear);
 
   return (
     <div className="flex w-full max-w-xl flex-col gap-4">
       <h1 className="text-3xl font-extrabold text-brick">{theme.display_name}</h1>
       <FollowButton themeId={theme.id} following={Boolean(follow)} size="large" />
       <p className="text-sm text-zinc-400">
-        Followers get an alert when a new {theme.display_name} set is announced, and again when it
-        goes on sale.
+        Followers get an alert when a new {theme.display_name} set is announced, and again when
+        it goes on sale.
       </p>
 
       <nav className="flex flex-wrap gap-2" aria-label="Filter sets">
@@ -159,109 +131,22 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
       </nav>
 
       {shown.length === 0 && <p className="text-zinc-400">No sets here right now.</p>}
-      {groups.map((group) => (
-        <section key={group.status ?? "other"} className="flex flex-col gap-3">
+      {groupByStatus(shown, thisYear).map(({ group, sets: groupSets }) => (
+        <section key={group} className="flex flex-col gap-3">
           {filter === "all" && (
             <h2 className="mt-2 text-lg font-bold text-white">
-              {GROUP_LABELS[group.status ?? "other"]} ({group.sets.length})
+              {GROUP_LABELS[group]} ({groupSets.length})
             </h2>
           )}
-          <SetList sets={group.sets} thisYear={thisYear} />
+          <ul className="flex flex-col gap-3">
+            {groupSets.map((s) => (
+              <li key={s.set_num}>
+                <SetCard set={s} thisYear={thisYear} />
+              </li>
+            ))}
+          </ul>
         </section>
       ))}
     </div>
-  );
-}
-
-// Coming soon first, then on sale, then sets we can't classify yet.
-const STATUS_ORDER = { coming: 0, available: 1, other: 2 } as const;
-const GROUP_LABELS = {
-  coming: "Coming soon",
-  available: "On sale",
-  other: "Other sets",
-} as const;
-
-const statusKey = (s: SetRow, thisYear: number) => statusOf(s, thisYear) ?? "other";
-
-/** Sort order within the page. Dates are "YYYY-MM-DD", so text order = date order. */
-function compareSets(a: SetRow, b: SetRow, thisYear: number): number {
-  const sa = statusKey(a, thisYear);
-  const sb = statusKey(b, thisYear);
-  if (sa !== sb) return STATUS_ORDER[sa] - STATUS_ORDER[sb];
-  const da = a.launch_date ?? `${a.year}-12-31`;
-  const db = b.launch_date ?? `${b.year}-12-31`;
-  // Coming soon: the soonest launch first. Everything else: newest first.
-  return sa === "coming" ? da.localeCompare(db) : db.localeCompare(da);
-}
-
-function groupByStatus(sets: SetRow[], thisYear: number) {
-  const groups: { status: keyof typeof STATUS_ORDER; sets: SetRow[] }[] = [];
-  for (const s of sets) {
-    const status = statusKey(s, thisYear);
-    const last = groups.at(-1);
-    if (last?.status === status) last.sets.push(s);
-    else groups.push({ status, sets: [s] });
-  }
-  return groups;
-}
-
-/**
- * LEGO.com product URLs include a name slug we can't predict, but its search
- * reliably finds a set by number ("75192-1" → "75192"). Just a link, not
- * scraping, so no terms-of-service concerns.
- */
-function legoComUrl(setNum: string): string {
-  return `https://www.lego.com/en-us/search?q=${encodeURIComponent(setNum.replace(/-\d+$/, ""))}`;
-}
-
-function SetList({ sets, thisYear }: { sets: SetRow[]; thisYear: number }) {
-  return (
-    <ul className="flex flex-col gap-3">
-      {sets.map((s) => {
-        const onSale = statusOf(s, thisYear) === "available";
-        return (
-          <li key={s.set_num} className="rounded-2xl bg-white p-3 text-zinc-900 shadow">
-            <div className="flex gap-3">
-              <RemoteImage
-                src={s.image_url}
-                alt={s.name}
-                className="h-20 w-24 shrink-0 rounded-lg"
-              />
-              <div className="flex flex-col justify-center">
-                <span className="font-bold leading-tight">{s.name}</span>
-                <span className="text-sm text-zinc-500">
-                  #{s.set_num.replace(/-1$/, "")} · {s.year} ·{" "}
-                  {s.num_parts > 0 ? `${s.num_parts.toLocaleString()} pieces` : "pieces TBA"}
-                </span>
-                <StatusBadge s={s} thisYear={thisYear} />
-              </div>
-            </div>
-            {/* Two separate links (a link can't contain another link). */}
-            <div className="mt-3 flex items-center gap-3">
-              <a
-                href={legoComUrl(s.set_num)}
-                target="_blank"
-                rel="noreferrer"
-                className={`flex-1 rounded-xl px-3 py-2 text-center text-sm font-bold ${
-                  onSale ? "bg-brick text-navy" : "bg-navy text-white"
-                }`}
-              >
-                {onSale ? "Buy on LEGO.com ↗" : "View on LEGO.com ↗"}
-              </a>
-              {s.source_url && (
-                <a
-                  href={s.source_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-zinc-500 underline"
-                >
-                  Details
-                </a>
-              )}
-            </div>
-          </li>
-        );
-      })}
-    </ul>
   );
 }

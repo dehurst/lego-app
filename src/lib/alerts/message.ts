@@ -37,7 +37,7 @@ function newSetMessage(items: AlertItem[], thisYear: number): PushPayload {
       url: `/themes/${items[0].themeId}`,
     };
   }
-  return { title: `🧱 ${items.length} new LEGO sets`, body: `In ${listNames(themes, 4)}`, url: "/themes" };
+  return { title: `🧱 ${items.length} new LEGO sets`, body: `In ${listNames(themes, 4)}`, url: "/alerts" };
 }
 
 function nowAvailableMessage(items: AlertItem[]): PushPayload {
@@ -54,7 +54,7 @@ function nowAvailableMessage(items: AlertItem[]): PushPayload {
     body: listNames(items.map((i) => i.setName), 3),
     url: items.every((i) => i.themeId === items[0].themeId)
       ? `/themes/${items[0].themeId}?show=available`
-      : "/themes",
+      : "/alerts",
   };
 }
 
@@ -70,6 +70,6 @@ export function buildAlertMessage(items: AlertItem[], thisYear: number): PushPay
   return {
     title: `🧱 ${items.length} LEGO updates`,
     body: `${fresh.length} new set${fresh.length > 1 ? "s" : ""} announced, ${inStores.length} now in stores`,
-    url: "/themes",
+    url: "/alerts",
   };
 }

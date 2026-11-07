@@ -1,6 +1,7 @@
 import "server-only";
 import { sendPush, type StoredSubscription } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { unreadAlertCount } from "./inbox";
 import { buildAlertMessage, type AlertItem, type AlertKind } from "./message";
 import { isQuietHours } from "./quiet-hours";
 
@@ -152,7 +153,9 @@ export async function deliverPendingAlerts({ force = false } = {}): Promise<Deli
       .eq("user_id", userId);
 
     let reached = 0;
-    const message = buildAlertMessage(items, thisYear);
+    // Badge = alerts already unread + the ones we're sending now.
+    const badge = (await unreadAlertCount(userId)) + rows.length;
+    const message = { ...buildAlertMessage(items, thisYear), badge };
     const outcomes = await Promise.all(
       ((devices ?? []) as StoredSubscription[]).map((d) => sendPush(d, message)),
     );

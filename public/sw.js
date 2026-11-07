@@ -36,7 +36,16 @@ self.addEventListener("push", (event) => {
     data: { url: data.url || "/" },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    (async () => {
+      // The red number on the Home Screen icon. (Supported on iOS 16.4+
+      // for installed apps; harmless to skip elsewhere.)
+      if (typeof data.badge === "number" && self.navigator.setAppBadge) {
+        await self.navigator.setAppBadge(data.badge).catch(() => {});
+      }
+      await self.registration.showNotification(title, options);
+    })(),
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {
