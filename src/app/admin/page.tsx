@@ -8,7 +8,8 @@ import {
   ConfirmButton,
   ResetPasswordButton,
   ShareInviteButton,
-  SyncCatalogButton,
+  RunCheckButton,
+  SimulateNewSetForm,
 } from "./admin-buttons";
 
 export default function AdminPage() {
@@ -51,7 +52,13 @@ async function AdminContent() {
   }
 
   const db = createAdminClient();
-  const [{ data: profiles }, { data: invites }, { data: devices }, { data: lastSync }] = await Promise.all([
+  const [
+    { data: profiles },
+    { data: invites },
+    { data: devices },
+    { data: lastSync },
+    { data: followed },
+  ] = await Promise.all([
     db.from("profiles").select("id, username, role, status, created_at").order("created_at"),
     db
       .from("invite_codes")
@@ -66,7 +73,20 @@ async function AdminContent() {
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
+    db.from("theme_follows").select("theme_id, themes(display_name)"),
   ]);
+
+  // Themes at least one person follows, for the "simulate" test.
+  const followedThemes = [
+    ...new Map(
+      (followed ?? []).map((f) => [
+        f.theme_id,
+        (f.themes as unknown as { display_name: string } | null)?.display_name ?? `#${f.theme_id}`,
+      ]),
+    ),
+  ]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const deviceCount = new Map<string, number>();
   for (const d of devices ?? []) {
@@ -150,7 +170,18 @@ async function AdminContent() {
               }`
             : "Never synced. Tap below to load themes and sets."}
         </p>
-        <SyncCatalogButton />
+        <RunCheckButton />
+        <p className="mt-2 text-xs text-zinc-400">
+          Runs automatically every hour. Running it here also sends during quiet hours.
+        </p>
+      </Card>
+
+      <Card title="Test an alert">
+        <p className="mb-3 text-sm text-zinc-500">
+          Makes the newest set in a theme look brand new, then runs the check, so
+          everyone following that theme gets a real alert.
+        </p>
+        <SimulateNewSetForm themes={followedThemes} />
       </Card>
 
       <Card title={`People (${members.length})`}>

@@ -26,7 +26,7 @@ admin approval to sign up, push is the only alert channel, quiet hours
 - [x] **M2** Push end-to-end: "Turn on alerts" → test notification on a real iPhone
 - [x] **M3** Username/password login, invite codes, admin approval, multi-device
 - [x] **M4** Catalog sync (Rebrickable); browse + follow themes
-- [ ] **M5** Hourly job: new + now-available sets → push (with quiet hours)
+- [x] **M5** Hourly job: new sets → push (with quiet hours). "Now available" waits for Brickset
 - [ ] **M6** In-app alerts inbox + "alerts are off on this device" banner
 - [ ] **M7** Watchlist (stored; stock checks are Phase 2)
 - [ ] **M8** Admin page, error handling, privacy page
@@ -100,7 +100,19 @@ The catalog keeps last year's sets onward. Merchandise (keychains, shoe
 charms), books and promo items are filtered out by theme. Rules for what's
 hidden and friendlier theme names live in `src/lib/catalog/themes.ts`.
 
-### 6. Brickset (optional, for "now available" alerts)
+### 6. Hourly check (M5)
+1. Run `supabase/migrations/0004_notifications.sql` (see step 3).
+2. Add `CRON_SECRET` to Vercel (Secret; `openssl rand -base64 32`), redeploy.
+3. Open `supabase/schedule-hourly-check.sql`, replace the app URL and
+   secret placeholders, and run it in the Supabase SQL Editor.
+4. Admin page → **Test an alert** sends a real alert end to end.
+
+How it works: every hour Supabase calls `/api/cron/hourly`, which syncs the
+catalog, records an alert for each follower of each brand-new set (one per
+person per set, ever), and sends each person a single grouped push.
+9pm–7am Eastern is quiet: alerts wait and go out after 7am.
+
+### 7. Brickset (optional, for "now available" alerts)
 Request a free API key at https://brickset.com/tools/webservices/requestkey.
 It can take a little while to arrive, so request it early.
 
@@ -129,5 +141,7 @@ src/lib/auth.ts            Who is logged in? The one place that decides
 src/proxy.ts               Keeps login sessions fresh on every request
 src/lib/catalog/           LEGO data: source (Rebrickable), theme rules, sync
 src/app/themes/            Browse themes, follow them, see a theme's sets
+src/lib/alerts/            Hourly job: queue alerts, quiet hours, grouped messages
+src/app/api/cron/hourly/   The endpoint Supabase's scheduler calls
 supabase/migrations/       SQL to run in Supabase, in order
 ```

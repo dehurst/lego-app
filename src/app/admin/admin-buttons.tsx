@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { resetPassword, syncCatalogNow } from "./actions";
+import { resetPassword, runCheckNow, simulateNewSet } from "./actions";
 
 /** A submit button that asks "are you sure?" first. */
 export function ConfirmButton({
@@ -86,8 +86,17 @@ export function ShareInviteButton({ code }: { code: string }) {
   );
 }
 
-export function SyncCatalogButton() {
-  const [state, formAction, pending] = useActionState(syncCatalogNow, undefined);
+function CheckResult({ state }: { state: Awaited<ReturnType<typeof runCheckNow>> }) {
+  if (!state) return null;
+  return state.ok ? (
+    <p className="text-sm text-green-700">✓ {state.summary}</p>
+  ) : (
+    <p className="text-sm text-red-700">Failed: {state.error}</p>
+  );
+}
+
+export function RunCheckButton() {
+  const [state, formAction, pending] = useActionState(runCheckNow, undefined);
   return (
     <form action={formAction} className="flex flex-col gap-2">
       <button
@@ -95,10 +104,40 @@ export function SyncCatalogButton() {
         disabled={pending}
         className="w-full rounded-xl bg-navy px-4 py-3 font-bold text-white disabled:opacity-40"
       >
-        {pending ? "Syncing… (about 10 seconds)" : "Sync catalog now"}
+        {pending ? "Checking… (about 10 seconds)" : "Run hourly check now"}
       </button>
-      {state?.ok && <p className="text-sm text-green-700">✓ {state.summary}</p>}
-      {state && !state.ok && <p className="text-sm text-red-700">Sync failed: {state.error}</p>}
+      <CheckResult state={state} />
+    </form>
+  );
+}
+
+export function SimulateNewSetForm({ themes }: { themes: { id: number; name: string }[] }) {
+  const [state, formAction, pending] = useActionState(simulateNewSet, undefined);
+  return (
+    <form action={formAction} className="flex flex-col gap-2">
+      <select
+        name="themeId"
+        required
+        defaultValue=""
+        className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-base text-zinc-900"
+      >
+        <option value="" disabled>
+          Pick a theme someone follows…
+        </option>
+        {themes.map((t) => (
+          <option key={t.id} value={t.id}>
+            {t.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-xl bg-brick px-4 py-3 font-bold text-navy disabled:opacity-40"
+      >
+        {pending ? "Simulating…" : "Simulate a new set"}
+      </button>
+      <CheckResult state={state} />
     </form>
   );
 }

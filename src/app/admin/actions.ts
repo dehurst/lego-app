@@ -70,28 +70,63 @@ export async function resetPassword(_prev: ResetState, formData: FormData): Prom
   return { password };
 }
 
-export type SyncState =
-  | { ok: true; summary: string }
-  | { ok: false; error: string }
-  | undefined;
+export type CheckState = { ok: true; summary: string } | { ok: false; error: string } | undefined;
 
-/** Pull the latest themes + sets from Rebrickable right now. */
-export async function syncCatalogNow(): Promise<SyncState> {
-  await requireAdmin();
-  // Imported here so the admin page doesn't load sync code until it's used.
-  const { syncCatalog } = await import("@/lib/catalog/sync");
+async function runCheckAndSummarize(prefix = ""): Promise<CheckState> {
+  const { runHourlyCheck } = await import("@/lib/alerts/hourly");
   try {
-    const r = await syncCatalog();
+    // force: send even during quiet hours, since an admin is testing.
+    const r = await runHourlyCheck({ force: true });
     refresh();
+    const d = r.delivery;
     return {
       ok: true,
       summary:
-        `${r.sets} sets in ${r.seconds}s. ` +
-        (r.firstSync
-          ? "First sync: catalog loaded (no alerts for these)."
-          : `${r.newSetNums.length} new since last sync.`),
+        prefix +
+        `Synced ${r.sync.sets} sets in ${r.sync.seconds}s` +
+        (r.sync.firstSync
+          ? " (first sync: catalog loaded quietly, no alerts). "
+          : `, ${r.sync.newSets} new. Queued ${r.queued} alert(s). `) +
+        (d.alerts
+          ? `Sent ${d.alerts} alert(s) to ${d.people} person(s), reaching ${d.pushesSent} device(s).` +
+            (d.devicesExpired ? ` Removed ${d.devicesExpired} expired device(s).` : "") +
+            (d.pushFailures ? ` ${d.pushFailures} push(es) failed.` : "")
+          : "Nothing to send."),
     };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/** Run the full hourly job right now (sync → queue → send). */
+export async function runCheckNow(): Promise<CheckState> {
+  await requireAdmin();
+  return runCheckAndSummarize();
+}
+
+/**
+ * TESTING: forget the newest set in a theme, then run the hourly check.
+ * The sync finds it again, treats it as brand new, and alerts followers.
+ * Safe: the set comes right back from Rebrickable.
+ */
+export async function simulateNewSet(_prev: CheckState, formData: FormData): Promise<CheckState> {
+  await requireAdmin();
+  const themeId = Number(formData.get("themeId"));
+  if (!Number.isInteger(themeId)) return { ok: false, error: "Pick a theme." };
+
+  const db = createAdminClient();
+  const { data: newest } = await db
+    .from("sets")
+    .select("set_num, name")
+    .eq("root_theme_id", themeId)
+    .order("year", { ascending: false })
+    .order("set_num", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (!newest) return { ok: false, error: "That theme has no sets yet." };
+
+  // Deleting the set also deletes old alerts about it (cascade), so the
+  // "one alert per set per person" rule lets it be sent again.
+  await db.from("sets").delete().eq("set_num", newest.set_num);
+  return runCheckAndSummarize(`Pretended "${newest.name}" was new. `);
 }
