@@ -125,15 +125,19 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
   const all = (sets ?? []) as SetRow[];
   const count = (key: Filter) =>
     key === "all" ? all.length : all.filter((s) => statusOf(s, thisYear) === key).length;
-  const shown = filter === "all" ? all : all.filter((s) => statusOf(s, thisYear) === filter);
+  const shown = (filter === "all" ? all : all.filter((s) => statusOf(s, thisYear) === filter))
+    .slice()
+    .sort((a, b) => compareSets(a, b, thisYear));
+  // In the "All" view, show a heading wherever the status changes.
+  const groups = groupByStatus(shown, thisYear);
 
   return (
     <div className="flex w-full max-w-xl flex-col gap-4">
       <h1 className="text-3xl font-extrabold text-brick">{theme.display_name}</h1>
       <FollowButton themeId={theme.id} following={Boolean(follow)} size="large" />
       <p className="text-sm text-zinc-400">
-        Followers get an alert when a new {theme.display_name} set is announced, and again
-        when it goes on sale.
+        Followers get an alert when a new {theme.display_name} set is announced, and again when it
+        goes on sale.
       </p>
 
       <nav className="flex flex-wrap gap-2" aria-label="Filter sets">
@@ -152,28 +156,76 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
       </nav>
 
       {shown.length === 0 && <p className="text-zinc-400">No sets here right now.</p>}
-      <ul className="flex flex-col gap-3">
-        {shown.map((s) => (
-          <li key={s.set_num}>
-            <a
-              href={s.source_url ?? undefined}
-              target="_blank"
-              rel="noreferrer"
-              className="flex gap-3 rounded-2xl bg-white p-3 text-zinc-900 shadow"
-            >
-              <RemoteImage src={s.image_url} alt={s.name} className="h-20 w-24 shrink-0 rounded-lg" />
-              <span className="flex flex-col justify-center">
-                <span className="font-bold leading-tight">{s.name}</span>
-                <span className="text-sm text-zinc-500">
-                  #{s.set_num.replace(/-1$/, "")} · {s.year} ·{" "}
-                  {s.num_parts > 0 ? `${s.num_parts.toLocaleString()} pieces` : "pieces TBA"}
-                </span>
-                <StatusBadge s={s} thisYear={thisYear} />
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
+      {groups.map((group) => (
+        <section key={group.status ?? "other"} className="flex flex-col gap-3">
+          {filter === "all" && (
+            <h2 className="mt-2 text-lg font-bold text-white">
+              {GROUP_LABELS[group.status ?? "other"]} ({group.sets.length})
+            </h2>
+          )}
+          <SetList sets={group.sets} thisYear={thisYear} />
+        </section>
+      ))}
     </div>
+  );
+}
+
+// Coming soon first, then on sale, then sets we can't classify, retired last.
+const STATUS_ORDER = { coming: 0, available: 1, other: 2, retired: 3 } as const;
+const GROUP_LABELS = {
+  coming: "Coming soon",
+  available: "On sale",
+  other: "Other sets",
+  retired: "Retired",
+} as const;
+
+const statusKey = (s: SetRow, thisYear: number) => statusOf(s, thisYear) ?? "other";
+
+/** Sort order within the page. Dates are "YYYY-MM-DD", so text order = date order. */
+function compareSets(a: SetRow, b: SetRow, thisYear: number): number {
+  const sa = statusKey(a, thisYear);
+  const sb = statusKey(b, thisYear);
+  if (sa !== sb) return STATUS_ORDER[sa] - STATUS_ORDER[sb];
+  const da = a.launch_date ?? `${a.year}-12-31`;
+  const db = b.launch_date ?? `${b.year}-12-31`;
+  // Coming soon: the soonest launch first. Everything else: newest first.
+  return sa === "coming" ? da.localeCompare(db) : db.localeCompare(da);
+}
+
+function groupByStatus(sets: SetRow[], thisYear: number) {
+  const groups: { status: keyof typeof STATUS_ORDER; sets: SetRow[] }[] = [];
+  for (const s of sets) {
+    const status = statusKey(s, thisYear);
+    const last = groups.at(-1);
+    if (last?.status === status) last.sets.push(s);
+    else groups.push({ status, sets: [s] });
+  }
+  return groups;
+}
+
+function SetList({ sets, thisYear }: { sets: SetRow[]; thisYear: number }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {sets.map((s) => (
+        <li key={s.set_num}>
+          <a
+            href={s.source_url ?? undefined}
+            target="_blank"
+            rel="noreferrer"
+            className="flex gap-3 rounded-2xl bg-white p-3 text-zinc-900 shadow"
+          >
+            <RemoteImage src={s.image_url} alt={s.name} className="h-20 w-24 shrink-0 rounded-lg" />
+            <span className="flex flex-col justify-center">
+              <span className="font-bold leading-tight">{s.name}</span>
+              <span className="text-sm text-zinc-500">
+                #{s.set_num.replace(/-1$/, "")} · {s.year} ·{" "}
+                {s.num_parts > 0 ? `${s.num_parts.toLocaleString()} pieces` : "pieces TBA"}
+              </span>
+              <StatusBadge s={s} thisYear={thisYear} />
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
   );
 }
