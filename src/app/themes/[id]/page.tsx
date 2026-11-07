@@ -205,29 +205,63 @@ function groupByStatus(sets: SetRow[], thisYear: number) {
   return groups;
 }
 
+/**
+ * LEGO.com product URLs include a name slug we can't predict, but its search
+ * reliably finds a set by number ("75192-1" → "75192"). Just a link, not
+ * scraping, so no terms-of-service concerns.
+ */
+function legoComUrl(setNum: string): string {
+  return `https://www.lego.com/en-us/search?q=${encodeURIComponent(setNum.replace(/-\d+$/, ""))}`;
+}
+
 function SetList({ sets, thisYear }: { sets: SetRow[]; thisYear: number }) {
   return (
     <ul className="flex flex-col gap-3">
-      {sets.map((s) => (
-        <li key={s.set_num}>
-          <a
-            href={s.source_url ?? undefined}
-            target="_blank"
-            rel="noreferrer"
-            className="flex gap-3 rounded-2xl bg-white p-3 text-zinc-900 shadow"
-          >
-            <RemoteImage src={s.image_url} alt={s.name} className="h-20 w-24 shrink-0 rounded-lg" />
-            <span className="flex flex-col justify-center">
-              <span className="font-bold leading-tight">{s.name}</span>
-              <span className="text-sm text-zinc-500">
-                #{s.set_num.replace(/-1$/, "")} · {s.year} ·{" "}
-                {s.num_parts > 0 ? `${s.num_parts.toLocaleString()} pieces` : "pieces TBA"}
-              </span>
-              <StatusBadge s={s} thisYear={thisYear} />
-            </span>
-          </a>
-        </li>
-      ))}
+      {sets.map((s) => {
+        const onSale = statusOf(s, thisYear) === "available";
+        return (
+          <li key={s.set_num} className="rounded-2xl bg-white p-3 text-zinc-900 shadow">
+            <div className="flex gap-3">
+              <RemoteImage
+                src={s.image_url}
+                alt={s.name}
+                className="h-20 w-24 shrink-0 rounded-lg"
+              />
+              <div className="flex flex-col justify-center">
+                <span className="font-bold leading-tight">{s.name}</span>
+                <span className="text-sm text-zinc-500">
+                  #{s.set_num.replace(/-1$/, "")} · {s.year} ·{" "}
+                  {s.num_parts > 0 ? `${s.num_parts.toLocaleString()} pieces` : "pieces TBA"}
+                </span>
+                <StatusBadge s={s} thisYear={thisYear} />
+              </div>
+            </div>
+            {/* Two separate links (a link can't contain another link). */}
+            <div className="mt-3 flex items-center gap-3">
+              <a
+                href={legoComUrl(s.set_num)}
+                target="_blank"
+                rel="noreferrer"
+                className={`flex-1 rounded-xl px-3 py-2 text-center text-sm font-bold ${
+                  onSale ? "bg-brick text-navy" : "bg-navy text-white"
+                }`}
+              >
+                {onSale ? "Buy on LEGO.com ↗" : "View on LEGO.com ↗"}
+              </a>
+              {s.source_url && (
+                <a
+                  href={s.source_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-zinc-500 underline"
+                >
+                  Details
+                </a>
+              )}
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
