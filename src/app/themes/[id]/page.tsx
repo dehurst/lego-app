@@ -38,20 +38,22 @@ type SetRow = {
   rrp_usd: number | string | null;
 };
 
-type Filter = "all" | "available" | "coming" | "retired";
+type Filter = "all" | "available" | "coming";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "available", label: "On sale" },
   { key: "coming", label: "Coming soon" },
-  { key: "retired", label: "Retired" },
 ];
 
 /**
  * Where a set stands. Brickset's dates win when we have them; otherwise
  * fall back to the release year (a future year means "coming").
+ * (Retired sets are filtered out in the database query, so never reach here.)
  */
 function statusOf(s: SetRow, thisYear: number): Exclude<Filter, "all"> | null {
-  if (s.availability_status) return s.availability_status;
+  if (s.availability_status === "coming" || s.availability_status === "available") {
+    return s.availability_status;
+  }
   return s.year > thisYear ? "coming" : null;
 }
 
@@ -79,7 +81,6 @@ function StatusBadge({ s, thisYear }: { s: SetRow; thisYear: number }) {
       </Badge>
     );
   }
-  if (status === "retired") return <Badge className="bg-zinc-300 text-zinc-700">Retired</Badge>;
   return null;
 }
 
@@ -109,6 +110,8 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
         "set_num, name, year, num_parts, image_url, source_url, availability_status, launch_date, rrp_usd",
       )
       .eq("root_theme_id", id)
+      // Hide retired sets: you can't buy them anymore.
+      .or("availability_status.is.null,availability_status.neq.retired")
       .order("year", { ascending: false })
       .order("first_seen_at", { ascending: false })
       .limit(1000),
@@ -170,13 +173,12 @@ async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "sea
   );
 }
 
-// Coming soon first, then on sale, then sets we can't classify, retired last.
-const STATUS_ORDER = { coming: 0, available: 1, other: 2, retired: 3 } as const;
+// Coming soon first, then on sale, then sets we can't classify yet.
+const STATUS_ORDER = { coming: 0, available: 1, other: 2 } as const;
 const GROUP_LABELS = {
   coming: "Coming soon",
   available: "On sale",
   other: "Other sets",
-  retired: "Retired",
 } as const;
 
 const statusKey = (s: SetRow, thisYear: number) => statusOf(s, thisYear) ?? "other";
