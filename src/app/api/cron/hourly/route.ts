@@ -2,8 +2,8 @@ import { runHourlyCheck } from "@/lib/alerts/hourly";
 import { optionalEnv } from "@/lib/env";
 import { safeEqual } from "@/lib/secrets";
 
-// Syncing takes ~10 seconds; allow up to a minute.
-export const maxDuration = 60;
+// Usually ~10 seconds; a Brickset fetch (every 6 hours) adds up to ~30.
+export const maxDuration = 120;
 
 // Called every hour by Supabase's scheduler (pg_cron). Protected by
 // CRON_SECRET so nobody else can trigger it.

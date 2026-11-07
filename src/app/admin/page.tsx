@@ -8,6 +8,7 @@ import {
   ConfirmButton,
   ResetPasswordButton,
   ShareInviteButton,
+  FetchBricksetButton,
   RunCheckButton,
   SimulateNewSetForm,
 } from "./admin-buttons";
@@ -58,6 +59,8 @@ async function AdminContent() {
     { data: devices },
     { data: lastSync },
     { data: followed },
+    { data: bricksetState },
+    { count: setsWithStatus },
   ] = await Promise.all([
     db.from("profiles").select("id, username, role, status, created_at").order("created_at"),
     db
@@ -74,7 +77,13 @@ async function AdminContent() {
       .limit(1)
       .maybeSingle(),
     db.from("theme_follows").select("theme_id, themes(display_name)"),
+    db.from("app_state").select("value").eq("key", "brickset").maybeSingle(),
+    db
+      .from("sets")
+      .select("set_num", { count: "exact", head: true })
+      .not("availability_status", "is", null),
   ]);
+  const lastBrickset = (bricksetState?.value as { lastFetchAt?: string } | null)?.lastFetchAt;
 
   // Themes at least one person follows, for the "simulate" test.
   const followedThemes = [
@@ -174,6 +183,20 @@ async function AdminContent() {
         <p className="mt-2 text-xs text-zinc-400">
           Runs automatically every hour. Running it here also sends during quiet hours.
         </p>
+      </Card>
+
+      <Card title="Brickset (availability)">
+        <p className="mb-3 text-sm text-zinc-500">
+          {lastBrickset
+            ? `Last fetched ${new Date(lastBrickset).toLocaleString("en-US", {
+                timeZone: "America/New_York",
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}. ${setsWithStatus ?? 0} sets have availability info.`
+            : "Never fetched yet."}{" "}
+          Fetched automatically every 6 hours.
+        </p>
+        <FetchBricksetButton />
       </Card>
 
       <Card title="Test an alert">

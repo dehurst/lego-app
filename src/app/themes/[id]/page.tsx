@@ -7,7 +7,9 @@ import { getApprovedUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { FollowButton } from "../follow-button";
 
-export default function ThemePage({ params }: PageProps<"/themes/[id]">) {
+type Props = PageProps<"/themes/[id]">;
+
+export default function ThemePage({ params, searchParams }: Props) {
   return (
     <main className="flex flex-1 flex-col items-center gap-6 px-4 py-8">
       <div className="w-full max-w-xl">
@@ -15,9 +17,9 @@ export default function ThemePage({ params }: PageProps<"/themes/[id]">) {
           ← All themes
         </Link>
       </div>
-      {/* The theme id comes from the URL, which is only known per request. */}
+      {/* The theme id and filter come from the URL, known only per request. */}
       <Suspense fallback={<p className="text-zinc-400">Loading…</p>}>
-        <ThemeDetail params={params} />
+        <ThemeDetail params={params} searchParams={searchParams} />
       </Suspense>
       <RebrickableCredit />
     </main>
@@ -31,30 +33,85 @@ type SetRow = {
   num_parts: number;
   image_url: string | null;
   source_url: string | null;
+  availability_status: "coming" | "available" | "retired" | null;
+  launch_date: string | null;
+  rrp_usd: number | string | null;
 };
 
-async function ThemeDetail({ params }: { params: PageProps<"/themes/[id]">["params"] }) {
+type Filter = "all" | "available" | "coming" | "retired";
+const FILTERS: { key: Filter; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "available", label: "On sale" },
+  { key: "coming", label: "Coming soon" },
+  { key: "retired", label: "Retired" },
+];
+
+/**
+ * Where a set stands. Brickset's dates win when we have them; otherwise
+ * fall back to the release year (a future year means "coming").
+ */
+function statusOf(s: SetRow, thisYear: number): Exclude<Filter, "all"> | null {
+  if (s.availability_status) return s.availability_status;
+  return s.year > thisYear ? "coming" : null;
+}
+
+function formatLaunch(date: string): string {
+  // Dates are plain days ("2027-03-01"); format at noon UTC so no time zone
+  // can push them onto the day before.
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function StatusBadge({ s, thisYear }: { s: SetRow; thisYear: number }) {
+  const status = statusOf(s, thisYear);
+  const price = s.rrp_usd ? ` · $${Number(s.rrp_usd).toFixed(2)}` : "";
+  if (status === "available") {
+    return <Badge className="bg-green-600 text-white">On sale{price}</Badge>;
+  }
+  if (status === "coming") {
+    return (
+      <Badge className="bg-brick text-navy">
+        Coming {s.launch_date ? formatLaunch(s.launch_date) : s.year}
+        {price}
+      </Badge>
+    );
+  }
+  if (status === "retired") return <Badge className="bg-zinc-300 text-zinc-700">Retired</Badge>;
+  return null;
+}
+
+function Badge({ className, children }: { className: string; children: React.ReactNode }) {
+  return (
+    <span className={`mt-1 w-fit rounded px-1.5 py-0.5 text-xs font-bold ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+async function ThemeDetail({ params, searchParams }: Pick<Props, "params" | "searchParams">) {
   const user = await getApprovedUser();
   if (!user) return <Card title="Log in first">Themes are for approved members.</Card>;
 
   const id = Number((await params).id);
+  const show = (await searchParams).show;
+  const filter: Filter = FILTERS.some((f) => f.key === show) ? (show as Filter) : "all";
   if (!Number.isInteger(id)) return <Card title="Not found">That theme doesn&apos;t exist.</Card>;
 
   const db = createAdminClient();
   const [{ data: theme }, { data: sets }, { data: follow }] = await Promise.all([
-    db
-      .from("themes")
-      .select("id, display_name, recent_set_count")
-      .eq("id", id)
-      .eq("hidden", false)
-      .maybeSingle(),
+    db.from("themes").select("id, display_name").eq("id", id).eq("hidden", false).maybeSingle(),
     db
       .from("sets")
-      .select("set_num, name, year, num_parts, image_url, source_url")
+      .select(
+        "set_num, name, year, num_parts, image_url, source_url, availability_status, launch_date, rrp_usd",
+      )
       .eq("root_theme_id", id)
       .order("year", { ascending: false })
       .order("first_seen_at", { ascending: false })
-      .limit(100),
+      .limit(1000),
     db
       .from("theme_follows")
       .select("theme_id")
@@ -65,16 +122,38 @@ async function ThemeDetail({ params }: { params: PageProps<"/themes/[id]">["para
 
   if (!theme) return <Card title="Not found">That theme doesn&apos;t exist.</Card>;
   const thisYear = new Date().getFullYear();
+  const all = (sets ?? []) as SetRow[];
+  const count = (key: Filter) =>
+    key === "all" ? all.length : all.filter((s) => statusOf(s, thisYear) === key).length;
+  const shown = filter === "all" ? all : all.filter((s) => statusOf(s, thisYear) === filter);
 
   return (
     <div className="flex w-full max-w-xl flex-col gap-4">
       <h1 className="text-3xl font-extrabold text-brick">{theme.display_name}</h1>
       <FollowButton themeId={theme.id} following={Boolean(follow)} size="large" />
       <p className="text-sm text-zinc-400">
-        Follow to get an alert when a new {theme.display_name} set is announced.
+        Followers get an alert when a new {theme.display_name} set is announced, and again
+        when it goes on sale.
       </p>
+
+      <nav className="flex flex-wrap gap-2" aria-label="Filter sets">
+        {FILTERS.map((f) => (
+          <Link
+            key={f.key}
+            href={f.key === "all" ? `/themes/${id}` : `/themes/${id}?show=${f.key}`}
+            replace
+            className={`rounded-full px-3 py-1 text-sm font-bold ${
+              filter === f.key ? "bg-brick text-navy" : "bg-white/10 text-zinc-200"
+            }`}
+          >
+            {f.label} ({count(f.key)})
+          </Link>
+        ))}
+      </nav>
+
+      {shown.length === 0 && <p className="text-zinc-400">No sets here right now.</p>}
       <ul className="flex flex-col gap-3">
-        {(sets as SetRow[] | null)?.map((s) => (
+        {shown.map((s) => (
           <li key={s.set_num}>
             <a
               href={s.source_url ?? undefined}
@@ -89,11 +168,7 @@ async function ThemeDetail({ params }: { params: PageProps<"/themes/[id]">["para
                   #{s.set_num.replace(/-1$/, "")} · {s.year} ·{" "}
                   {s.num_parts > 0 ? `${s.num_parts.toLocaleString()} pieces` : "pieces TBA"}
                 </span>
-                {s.year > thisYear && (
-                  <span className="mt-1 w-fit rounded bg-brick px-1.5 py-0.5 text-xs font-bold text-navy">
-                    Coming {s.year}
-                  </span>
-                )}
+                <StatusBadge s={s} thisYear={thisYear} />
               </span>
             </a>
           </li>

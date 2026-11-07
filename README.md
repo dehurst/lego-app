@@ -26,7 +26,8 @@ admin approval to sign up, push is the only alert channel, quiet hours
 - [x] **M2** Push end-to-end: "Turn on alerts" → test notification on a real iPhone
 - [x] **M3** Username/password login, invite codes, admin approval, multi-device
 - [x] **M4** Catalog sync (Rebrickable); browse + follow themes
-- [x] **M5** Hourly job: new sets → push (with quiet hours). "Now available" waits for Brickset
+- [x] **M5** Hourly job: new sets → push (with quiet hours)
+- [x] **M5b** Brickset: on sale / coming / retired, prices, "now in stores" alerts
 - [ ] **M6** In-app alerts inbox + "alerts are off on this device" banner
 - [ ] **M7** Watchlist (stored; stock checks are Phase 2)
 - [ ] **M8** Admin page, error handling, privacy page
@@ -112,9 +113,21 @@ catalog, records an alert for each follower of each brand-new set (one per
 person per set, ever), and sends each person a single grouped push.
 9pm–7am Eastern is quiet: alerts wait and go out after 7am.
 
-### 7. Brickset (optional, for "now available" alerts)
-Request a free API key at https://brickset.com/tools/webservices/requestkey.
-It can take a little while to arrive, so request it early.
+### 7. Brickset (optional: availability, prices, "now in stores" alerts)
+1. Request a free key at https://brickset.com/tools/webservices/requestkey
+   (approval can take days). Check it with
+   `https://brickset.com/api/v3.asmx/checkKey?apiKey=YOUR-KEY`.
+2. Add `BRICKSET_API_KEY` to Vercel (Secret), redeploy.
+3. Run `supabase/migrations/0005_brickset_availability.sql`.
+4. Admin → **Fetch from Brickset now**.
+
+How it works: every 6 hours (Brickset limits daily calls) we fetch launch
+dates, retirement dates and US prices for last year → next year into
+`brickset_sets`. Every hour, the SQL function `refresh_set_availability`
+recomputes each set's status from those dates (no API calls), so a set flips
+to "on sale" on its launch day. A set going from *coming* to *available*
+sends followers a "Now in stores" alert. Brickset failures never block
+new-set alerts.
 
 ## Secrets
 

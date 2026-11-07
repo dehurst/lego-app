@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { resetPassword, runCheckNow, simulateNewSet } from "./actions";
+import { fetchBricksetNow, resetPassword, runCheckNow, simulateNewSet } from "./actions";
 
 /** A submit button that asks "are you sure?" first. */
 export function ConfirmButton({
@@ -105,6 +105,22 @@ export function RunCheckButton() {
         className="w-full rounded-xl bg-navy px-4 py-3 font-bold text-white disabled:opacity-40"
       >
         {pending ? "Checking… (about 10 seconds)" : "Run hourly check now"}
+      </button>
+      <CheckResult state={state} />
+    </form>
+  );
+}
+
+export function FetchBricksetButton() {
+  const [state, formAction, pending] = useActionState(fetchBricksetNow, undefined);
+  return (
+    <form action={formAction} className="flex flex-col gap-2">
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-xl bg-navy px-4 py-3 font-bold text-white disabled:opacity-40"
+      >
+        {pending ? "Fetching… (up to 30 seconds)" : "Fetch from Brickset now"}
       </button>
       <CheckResult state={state} />
     </form>

@@ -22,7 +22,7 @@ select cron.schedule(
       'Authorization', 'Bearer YOUR-CRON-SECRET',
       'Content-Type', 'application/json'
     ),
-    timeout_milliseconds := 60000
+    timeout_milliseconds := 120000
   );
   $$
 );

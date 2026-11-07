@@ -1,16 +1,16 @@
 import "server-only";
 import { sendPush, type StoredSubscription } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildNewSetMessage, type AlertItem } from "./message";
+import { buildAlertMessage, type AlertItem, type AlertKind } from "./message";
 import { isQuietHours } from "./quiet-hours";
 
 const CHUNK = 300;
 
 /**
- * Step 1: record a "new_set" alert for every follower of each new set's
- * theme. Duplicates are silently skipped (unique per person + set + kind).
+ * Step 1: record an alert of `kind` for every follower of each set's theme.
+ * Duplicates are silently skipped (unique per person + set + kind).
  */
-export async function queueNewSetAlerts(setNums: string[]): Promise<number> {
+export async function queueAlerts(setNums: string[], kind: AlertKind): Promise<number> {
   if (setNums.length === 0) return 0;
   const db = createAdminClient();
 
@@ -41,7 +41,7 @@ export async function queueNewSetAlerts(setNums: string[]): Promise<number> {
     (followersByTheme.get(s.root_theme_id) ?? []).map((userId) => ({
       user_id: userId,
       set_num: s.set_num,
-      kind: "new_set",
+      kind,
     })),
   );
 
@@ -106,6 +106,7 @@ export async function deliverPendingAlerts({ force = false } = {}): Promise<Deli
     id: number;
     user_id: string;
     set_num: string;
+    kind: string;
     sets: unknown;
   }[] = [];
   const ids = claimedIds.map((r) => r.id);
@@ -113,7 +114,7 @@ export async function deliverPendingAlerts({ force = false } = {}): Promise<Deli
     const { data, error: readError } = await db
       .from("notifications")
       .select(
-        "id, user_id, set_num, sets(name, year, root_theme_id, themes!sets_root_theme_id_fkey(display_name))",
+        "id, user_id, set_num, kind, sets(name, year, rrp_usd, root_theme_id, themes!sets_root_theme_id_fkey(display_name))",
       )
       .in("id", ids.slice(i, i + CHUNK));
     if (readError) throw new Error(`Reading claimed alerts: ${readError.message}`);
@@ -130,10 +131,13 @@ export async function deliverPendingAlerts({ force = false } = {}): Promise<Deli
       const set = r.sets as unknown as {
         name: string;
         year: number;
+        rrp_usd: number | string | null; // Postgres numeric can arrive as text
         root_theme_id: number;
         themes: { display_name: string } | null;
       };
       return {
+        kind: r.kind as AlertKind,
+        rrpUsd: set.rrp_usd === null ? null : Number(set.rrp_usd),
         setNum: r.set_num,
         setName: set.name,
         year: set.year,
@@ -148,7 +152,7 @@ export async function deliverPendingAlerts({ force = false } = {}): Promise<Deli
       .eq("user_id", userId);
 
     let reached = 0;
-    const message = buildNewSetMessage(items, thisYear);
+    const message = buildAlertMessage(items, thisYear);
     const outcomes = await Promise.all(
       ((devices ?? []) as StoredSubscription[]).map((d) => sendPush(d, message)),
     );

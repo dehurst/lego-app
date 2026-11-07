@@ -72,13 +72,18 @@ export async function resetPassword(_prev: ResetState, formData: FormData): Prom
 
 export type CheckState = { ok: true; summary: string } | { ok: false; error: string } | undefined;
 
-async function runCheckAndSummarize(prefix = ""): Promise<CheckState> {
+async function runCheckAndSummarize(prefix = "", forceBrickset = false): Promise<CheckState> {
   const { runHourlyCheck } = await import("@/lib/alerts/hourly");
   try {
     // force: send even during quiet hours, since an admin is testing.
-    const r = await runHourlyCheck({ force: true });
+    const r = await runHourlyCheck({ force: true, forceBrickset });
     refresh();
     const d = r.delivery;
+    const b = r.brickset;
+    const bricksetText = b.ran
+      ? `Brickset: ${b.fetched} sets in ${b.calls} call(s); ${r.nowAvailable} just went on sale. ` +
+        (forceBrickset ? `Fields seen: ${b.sampleFields.join(", ")}. ` : "")
+      : `Brickset skipped (${b.reason}). `;
     return {
       ok: true,
       summary:
@@ -86,7 +91,9 @@ async function runCheckAndSummarize(prefix = ""): Promise<CheckState> {
         `Synced ${r.sync.sets} sets in ${r.sync.seconds}s` +
         (r.sync.firstSync
           ? " (first sync: catalog loaded quietly, no alerts). "
-          : `, ${r.sync.newSets} new. Queued ${r.queued} alert(s). `) +
+          : `, ${r.sync.newSets} new. `) +
+        bricksetText +
+        `Queued ${r.queued} alert(s). ` +
         (d.alerts
           ? `Sent ${d.alerts} alert(s) to ${d.people} person(s), reaching ${d.pushesSent} device(s).` +
             (d.devicesExpired ? ` Removed ${d.devicesExpired} expired device(s).` : "") +
@@ -102,6 +109,16 @@ async function runCheckAndSummarize(prefix = ""): Promise<CheckState> {
 export async function runCheckNow(): Promise<CheckState> {
   await requireAdmin();
   return runCheckAndSummarize();
+}
+
+/**
+ * Run the hourly job AND fetch from Brickset even if it ran recently.
+ * Shows the field names Brickset returned, to confirm we read them right.
+ * Uses a few of Brickset's daily calls, so don't tap it repeatedly.
+ */
+export async function fetchBricksetNow(): Promise<CheckState> {
+  await requireAdmin();
+  return runCheckAndSummarize("", true);
 }
 
 /**
