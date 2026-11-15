@@ -7,6 +7,8 @@ import { WatchButton } from "@/components/watch-button";
 import { getApprovedUser } from "@/lib/auth";
 import { watchedSetNums } from "@/lib/watchlist";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { dismissAlert, dismissAllAlerts } from "./actions";
+import { DismissAllButton } from "./dismiss-all-button";
 import { MarkSeen } from "./mark-seen";
 
 export default function AlertsPage() {
@@ -63,6 +65,7 @@ async function AlertList() {
          sets(${SET_CARD_COLUMNS}, themes!sets_root_theme_id_fkey(display_name))`,
       )
       .eq("user_id", user.id)
+      .is("dismissed_at", null) // dismissed alerts are hidden, not deleted
       .order("created_at", { ascending: false })
       .limit(100),
     watchedSetNums(user.id),
@@ -74,7 +77,7 @@ async function AlertList() {
     <div className="flex w-full max-w-xl flex-col gap-3">
       <MarkSeen />
       {alerts.length === 0 && (
-        <Card title="No alerts yet">
+        <Card title="You're all caught up">
           When a new set is announced in a theme you follow, or a set goes on sale, it shows up
           here, even if you missed the notification.{" "}
           <Link href="/themes" className="font-semibold text-navy underline">
@@ -93,18 +96,35 @@ async function AlertList() {
                 <WatchButton setNum={a.sets!.set_num} watching={watched.has(a.sets!.set_num)} />
               }
               header={
-                <>
-                  {KIND_LABELS[a.kind] ?? a.kind}
-                  {a.sets?.themes ? ` · ${a.sets.themes.display_name}` : ""} ·{" "}
-                  {a.status === "sent" && a.sent_at
-                    ? when(a.sent_at)
-                    : "⏳ arrives after 7am (quiet hours)"}
-                </>
+                <div className="flex items-start justify-between gap-2">
+                  <span>
+                    {KIND_LABELS[a.kind] ?? a.kind}
+                    {a.sets?.themes ? ` · ${a.sets.themes.display_name}` : ""} ·{" "}
+                    {a.status === "sent" && a.sent_at
+                      ? when(a.sent_at)
+                      : "⏳ arrives after 7am (quiet hours)"}
+                  </span>
+                  <form action={dismissAlert}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <button
+                      type="submit"
+                      aria-label="Dismiss this alert"
+                      className="-m-1 shrink-0 rounded-lg p-1 text-sm font-semibold text-zinc-400 hover:text-zinc-700"
+                    >
+                      ✕ Dismiss
+                    </button>
+                  </form>
+                </div>
               }
             />
           </li>
         ))}
       </ul>
+      {alerts.length > 1 && (
+        <form action={dismissAllAlerts} className="mt-2">
+          <DismissAllButton count={alerts.length} />
+        </form>
+      )}
     </div>
   );
 }

@@ -15,6 +15,7 @@ export async function unreadAlertCount(userId: string): Promise<number> {
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
     .eq("status", "sent")
+    .is("dismissed_at", null) // a dismissed alert isn't "unread"
     .gt("sent_at", profile.alerts_seen_at);
   return count ?? 0;
 }
